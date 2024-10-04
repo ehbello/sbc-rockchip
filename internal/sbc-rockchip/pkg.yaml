@@ -1,0 +1,8 @@
+name: sbc-rockchip
+variant: scratch
+shell: /toolchain/bin/bash
+dependencies:
+  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/sbc-rockchip:{{ .BUILD_ARG_TAG }}"
+finalize:
+  - from: /
+    to: /rootfs

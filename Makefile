@@ -43,6 +43,7 @@ COMMON_ARGS += --platform=$(PLATFORM)
 COMMON_ARGS += --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
 COMMON_ARGS += --build-arg=PKGS_PREFIX="$(PKGS_PREFIX)"
 COMMON_ARGS += --build-arg=PKGS="$(PKGS)"
+COMMON_ARGS += --build-arg=TAG="$(TAG)"
 
 # extra variables
 
@@ -51,7 +52,7 @@ PKGS ?= v1.8.0-alpha.0-46-g124d35b
 
 # targets defines all the available targets
 
-TARGETS = sbc-rockchip
+TARGETS = sbc-rockchip-tpm
 
 # help menu
 

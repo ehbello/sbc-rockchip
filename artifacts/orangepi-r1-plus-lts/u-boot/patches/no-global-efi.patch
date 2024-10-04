@@ -1,0 +1,10 @@
+--- orangepi-r1-plus-lts-rk3328_defconfig.orig	2024-10-27 18:18:04.227049377 +0000
++++ orangepi-r1-plus-lts-rk3328_defconfig	2024-10-27 18:18:36.657416316 +0000
+@@ -22,6 +22,7 @@
+ CONFIG_SPL_FIT_SIGNATURE=y
+ CONFIG_SPL_LOAD_FIT=y
+ CONFIG_LEGACY_IMAGE_FORMAT=y
++CONFIG_BOOTCOMMAND="bootflow scan -Glb"
+ CONFIG_DEFAULT_FDT_FILE="rockchip/rk3328-orangepi-r1-plus-lts.dtb"
+ # CONFIG_DISPLAY_CPUINFO is not set
+ CONFIG_DISPLAY_BOARDINFO_LATE=y

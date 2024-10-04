@@ -19,9 +19,15 @@ import (
 const (
 	off   int64 = 512 * 64
 	board       = "rockpi4c"
-	// https://github.com/u-boot/u-boot/blob/4de720e98d552dfda9278516bf788c4a73b3e56f/configs/rock-pi-4c-rk3399_defconfig#L7=
-	dtb = "rockchip/rk3399-rock-pi-4c.dtb"
 )
+
+// List of boot files to copy
+var bootFiles = []string{
+	// https://github.com/u-boot/u-boot/blob/4de720e98d552dfda9278516bf788c4a73b3e56f/configs/rock-pi-4c-rk3399_defconfig#L7
+	"dtb/rockchip/rk3399-rock-pi-4c.dtb",
+	"dtb/rockchip/overlays/*.dtbo",
+	"boot.scr",
+}
 
 func main() {
 	adapter.Execute(&rockPi4c{})
@@ -73,13 +79,31 @@ func (i *rockPi4c) Install(options overlay.InstallOptions[rockPi4cExtraOptions])
 		return err
 	}
 
-	src := filepath.Join(options.ArtifactsPath, "arm64/dtb", dtb)
-	dst := filepath.Join(options.MountPrefix, "/boot/EFI/dtb", dtb)
+	for _, bootFile := range bootFiles {
+		matches, err := filepath.Glob(filepath.Join(options.ArtifactsPath, "arm64/", bootFile))
+		if err != nil {
+			return err
+		}
 
-	err = os.MkdirAll(filepath.Dir(dst), 0o600)
-	if err != nil {
-		return err
+		for _, match := range matches {
+			relPath, err := filepath.Rel(filepath.Join(options.ArtifactsPath, "arm64/"), match)
+			if err != nil {
+				return err
+			}
+
+			dst := filepath.Join(options.MountPrefix, "/boot/EFI/", relPath)
+
+			err = os.MkdirAll(filepath.Dir(dst), 0o600)
+			if err != nil {
+				return err
+			}
+
+			err = copy.File(match, dst)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	return copy.File(src, dst)
+	return nil
 }

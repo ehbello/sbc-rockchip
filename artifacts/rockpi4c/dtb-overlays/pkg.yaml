@@ -1,0 +1,25 @@
+name: dtb-overlays-rockpi4c
+variant: alpine
+install:
+  - u-boot-tools
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: base
+steps:
+  - env:
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    prepare:
+    build:
+      - |
+        for file in /pkg/files/*.dts; do
+          dtc -q -@ -O dtb -o $(basename $file .dts).dtbo -I dts $file
+        done
+      - mkimage -T script -A arm -C none -n "Boot script" -d /pkg/files/boot.cmd boot.scr
+    install:
+      - |
+        mkdir -p /rootfs/artifacts/arm64/dtb/overlays
+        cp *.dtbo /rootfs/artifacts/arm64/dtb/overlays
+      - cp boot.scr /rootfs/artifacts/arm64/
+finalize:
+  - from: /rootfs
+    to: /rootfs

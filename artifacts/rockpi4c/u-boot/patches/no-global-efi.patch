@@ -1,0 +1,10 @@
+--- ./configs/rock-pi-4c-rk3399_defconfig.orig	2024-10-06 00:51:29.918819018 +0100
++++ ./configs/rock-pi-4c-rk3399_defconfig	2024-10-06 00:53:46.621364644 +0100
+@@ -19,6 +19,7 @@
+ CONFIG_DEBUG_UART=y
+ CONFIG_AHCI=y
+ # CONFIG_ANDROID_BOOT_IMAGE is not set
++CONFIG_BOOTCOMMAND="bootflow scan -Glb"
+ CONFIG_DEFAULT_FDT_FILE="rockchip/rk3399-rock-pi-4c.dtb"
+ CONFIG_DISPLAY_BOARDINFO_LATE=y
+ CONFIG_SPL_MAX_SIZE=0x40000

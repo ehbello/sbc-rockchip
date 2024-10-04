@@ -11,7 +11,7 @@ steps:
         destination: linux.tar.xz
         sha256: "{{ .linux_sha256 }}"
         sha512: "{{ .linux_sha512 }}"
-      - url: https://github.com/radxa-pkg/radxa-overlays/archive/refs/tags/{{ .radxa_overlays_version }}.tar.gz
+      - url: https://github.com/ehbello/radxa-overlays/archive/refs/tags/{{ .radxa_overlays_version }}.tar.gz
         destination: radxa-overlays.tar.gz
         sha256: "{{ .radxa_overlays_sha256 }}"
         sha512: "{{ .radxa_overlays_sha512 }}"

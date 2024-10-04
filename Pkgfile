@@ -23,9 +23,9 @@ vars:
   uboot_rk1_sha512: ef817c9b5ae8dc6cd9e3f57811e90acc6a4d4394f0356aa5923e3e3c8559168f977bd5bf82824cd3650aa8e5e3c3d1b00e20818d21368151748682f1fc51152c
 
   # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=radxa-pkg/radxa-overlays
-  radxa_overlays_version: 0.1.17
-  radxa_overlays_sha256: ce8b8807a89a68694e457db9af91d98ec00d4b0b8d0b440db92b3d1acf3c27bf
-  radxa_overlays_sha512: 6219abacfcf29112b0543fe7382b6db7cb8d9a5db45c12c3bdb5bc119e4b1678c30502681bb72bd6a5f3bf51c367a0fc57eb9e10ecdb4b94e731502772aea5f1
+  radxa_overlays_version: tpm-slb9670
+  radxa_overlays_sha256: 0da9d50d89c825b2757944527228ea1c4f61952c63c045961c11edb6cf38441b
+  radxa_overlays_sha512: 9f8af29e2ae4d5793f63a4b111c7798030693cbcdf9c2f9fb74c1b759dfd196bd876f4961e22bd6dde0db7581768c86cf19aa35729e29b8a39bf71cc0a822e67
 
   # renovate: datasource=git-refs versioning=git depName=https://github.com/rockchip-linux/rkbin.git
   rkbin_ref: 7c35e21a8529b3758d1f051d1a5dc62aae934b2b

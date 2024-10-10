@@ -12,6 +12,8 @@ spec:
         defaultValue: ghcr.io/siderolabs
       - name: PKGS
         defaultValue: v1.9.0-1-gb047e41
+      - name: PKG_KERNEL
+        defaultValue: ghcr.io/siderolabs/kernel:v1.9.0-1-gb047e41
 ---
 kind: common.Build
 spec:

@@ -44,12 +44,14 @@ COMMON_ARGS += --platform=$(PLATFORM)
 COMMON_ARGS += --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
 COMMON_ARGS += --build-arg=BUILDKIT_MULTI_PLATFORM=$(BUILDKIT_MULTI_PLATFORM)
 COMMON_ARGS += --build-arg=PKGS_PREFIX="$(PKGS_PREFIX)"
+COMMON_ARGS += --build-arg=PKG_KERNEL="$(PKG_KERNEL)"
 COMMON_ARGS += --build-arg=PKGS="$(PKGS)"
 
 # extra variables
 
 PKGS_PREFIX ?= ghcr.io/siderolabs
 PKGS ?= v1.9.0-1-gb047e41
+PKG_KERNEL ?= $(PKGS_PREFIX)/kernel:$(PKGS)
 
 # targets defines all the available targets
 

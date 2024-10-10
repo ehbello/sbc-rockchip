@@ -37,27 +37,27 @@ dependencies:
     platform: linux/arm64
     from: /dtb/rockchip/rk3399-kobol-helios64.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3399-kobol-helios64.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3568-nanopi-r5s.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3568-nanopi-r5s.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3399-nanopi-r4s.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3399-nanopi-r4s.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3328-orangepi-r1-plus-lts.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3328-orangepi-r1-plus-lts.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3328-rock64.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3328-rock64.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3399-rock-pi-4b.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3399-rock-pi-4b.dtb
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3399-rock-pi-4c.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3399-rock-pi-4c.dtb

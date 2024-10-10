@@ -42,6 +42,7 @@ COMMON_ARGS += --progress=$(PROGRESS)
 COMMON_ARGS += --platform=$(PLATFORM)
 COMMON_ARGS += --build-arg=SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)
 COMMON_ARGS += --build-arg=PKGS_PREFIX="$(PKGS_PREFIX)"
+COMMON_ARGS += --build-arg=PKG_KERNEL="$(PKG_KERNEL)"
 COMMON_ARGS += --build-arg=PKGS="$(PKGS)"
 COMMON_ARGS += --build-arg=TAG="$(TAG)"
 
@@ -49,6 +50,7 @@ COMMON_ARGS += --build-arg=TAG="$(TAG)"
 
 PKGS_PREFIX ?= ghcr.io/siderolabs
 PKGS ?= v1.8.0-alpha.0-46-g124d35b
+PKG_KERNEL ?= $(PKGS_PREFIX)/kernel:$(PKGS)
 
 # targets defines all the available targets
 

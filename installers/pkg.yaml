@@ -7,7 +7,7 @@ dependencies:
   - stage: rockpi4c
   - stage: u-boot-rockpi4c
     platform: linux/arm64
-  - image: "{{ .BUILD_ARG_PKGS_PREFIX }}/kernel:{{ .BUILD_ARG_PKGS }}"
+  - image: "{{ .BUILD_ARG_PKG_KERNEL }}"
     platform: linux/arm64
     from: /dtb/rockchip/rk3399-rock-pi-4c.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3399-rock-pi-4c.dtb

@@ -6,7 +6,7 @@ echo "Growing fdt size by 65536"
 fdt resize 65536
 
 echo "Configuring fdt_overlay environment variable"
-setenv fdt_overlays spi1-add-cs1 tpm-slb9670
+setenv fdt_overlays rk3399-pwm1 rk3399-i2c7 spi1-add-cs1 tpm-slb9670
 
 for overlay in ${fdt_overlays}; do
     echo "Applying overlay: $overlay"

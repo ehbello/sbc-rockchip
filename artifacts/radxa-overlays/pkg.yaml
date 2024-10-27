@@ -1,0 +1,39 @@
+name: radxa-overlays
+variant: alpine
+install:
+  - u-boot-tools
+shell: /toolchain/bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://cdn.kernel.org/pub/linux/kernel/v{{ regexReplaceAll ".\\d+\\.\\d+$" .linux_version "${1}" }}.x/linux-{{ .linux_version }}.tar.xz
+        destination: linux.tar.xz
+        sha256: "{{ .linux_sha256 }}"
+        sha512: "{{ .linux_sha512 }}"
+      - url: https://github.com/radxa-pkg/radxa-overlays/archive/refs/tags/{{ .radxa_overlays_version }}.tar.gz
+        destination: radxa-overlays.tar.gz
+        sha256: "{{ .radxa_overlays_sha256 }}"
+        sha512: "{{ .radxa_overlays_sha512 }}"
+    env:
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    prepare:
+      - |
+        tar -xJf linux.tar.xz --strip-components=1
+        rm linux.tar.xz
+      - |
+        tar xf radxa-overlays.tar.gz --strip-components=1
+        rm radxa-overlays.tar.gz
+    build:
+      - make build-dtbo -j$(nproc) KSRC=.
+      - mkimage -T script -A arm -C none -n "Boot script" -d /pkg/files/boot.cmd boot.scr
+    install:
+      - |
+        for dtbo in $(find arch/arm64/boot/dts -name "*.dtbo" -printf "%P\n"); do
+          mkdir -p /rootfs/artifacts/arm64/dtb/$(dirname ${dtbo})
+          cp arch/arm64/boot/dts/${dtbo} /rootfs/artifacts/arm64/dtb/${dtbo}
+        done
+      - cp boot.scr /rootfs/artifacts/arm64/
+finalize:
+  - from: /rootfs
+    to: /rootfs

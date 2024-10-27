@@ -73,6 +73,8 @@ dependencies:
     platform: linux/arm64
     from: /dtb/rockchip/rk3588-turing-rk1.dtb
     to: /rootfs/artifacts/arm64/dtb/rockchip/rk3588-turing-rk1.dtb
+  - stage: radxa-overlays
+    platform: linux/arm64
 finalize:
   - from: /rootfs
     to: /

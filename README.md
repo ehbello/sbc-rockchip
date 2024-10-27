@@ -2,7 +2,15 @@
 
 This repo provides the overlay for RockChip based Talos image.
 
-## Supported Overlay
+For example usage instructions follow the [boot assets guide](https://www.talos.dev/latest/talos-guides/install/boot-assets/#example-raspberry-pi-overlay-with-imager).
+
+## Overlay Options
+
+| Option            | Description                                                         |
+| ----------------- | ------------------------------------------------------------------- |
+| `dtOverlays`      | Include the provided Device Tree overlays for loading them on boot  |
+
+## Supported Overlays
 
 | Overlay Name         | Board                 | SoC    | Description                                   |
 | -------------------- | --------------------- | ------ | --------------------------------------------- |

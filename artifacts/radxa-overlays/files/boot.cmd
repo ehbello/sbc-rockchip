@@ -7,7 +7,7 @@ if test -e ${devtype} ${devnum}:${distro_bootpart} ${prefix}boot.env; then
 	env import -t ${fdtoverlay_addr_r} ${filesize}
 fi
 
-echo "Applying base device tree: ${fdtfile}"
+echo "Applying DT base: ${fdtfile}"
 load ${devtype} ${devnum}:${distro_bootpart} ${fdt_addr_r} ${prefix}dtb/${fdtfile}
 fdt addr ${fdt_addr_r}
 fdt resize 65536

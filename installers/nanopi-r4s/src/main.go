@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/siderolabs/go-copy/copy"
 	"github.com/siderolabs/talos/pkg/machinery/overlay"
@@ -17,10 +18,17 @@ import (
 )
 
 const (
-	off   int64 = 512 * 64
-	board       = "nanopi-r4s"
-	dtb         = "rockchip/rk3399-nanopi-r4s.dtb"
+	off     int64 = 512 * 64
+	board         = "nanopi-r4s"
+	fdtfile       = "rk3399-nanopi-r4s.dtb"
+	dtbdir        = "dtb/rockchip"
 )
+
+// List of boot files to copy
+var bootFiles = []string{
+	filepath.Join(dtbdir, fdtfile),
+	"boot.scr",
+}
 
 func main() {
 	adapter.Execute(&nanopir4s{})
@@ -28,7 +36,9 @@ func main() {
 
 type nanopir4s struct{}
 
-type nanopir4sExtraOptions struct{}
+type nanopir4sExtraOptions struct {
+	DTOverlays string `yaml:"dtOverlays,omitempty"`
+}
 
 func (i *nanopir4s) GetOptions(extra nanopir4sExtraOptions) (overlay.Options, error) {
 	return overlay.Options{
@@ -72,13 +82,38 @@ func (i *nanopir4s) Install(options overlay.InstallOptions[nanopir4sExtraOptions
 		return err
 	}
 
-	src := filepath.Join(options.ArtifactsPath, "arm64/dtb", dtb)
-	dst := filepath.Join(options.MountPrefix, "/boot/EFI/dtb", dtb)
+	if dtOverlays := options.ExtraOptions.DTOverlays; dtOverlays != "" {
+		talosEnvPath := filepath.Join(options.MountPrefix, "/boot/EFI/boot.env")
+		talosEnvFile, err := os.OpenFile(talosEnvPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %w", talosEnvPath, err)
+		}
+		defer talosEnvFile.Close()
 
-	err = os.MkdirAll(filepath.Dir(dst), 0o600)
-	if err != nil {
-		return err
+		overlaysLine := fmt.Sprintf("overlays=%s\n", dtOverlays)
+		if _, err := talosEnvFile.WriteString(overlaysLine); err != nil {
+			return fmt.Errorf("failed to write env to %s: %w", talosEnvPath, err)
+		}
+
+		for _, overlayName := range strings.Fields(dtOverlays) {
+			bootFiles = append(bootFiles, filepath.Join(dtbdir, "overlays", overlayName+".dtbo"))
+		}
 	}
 
-	return copy.File(src, dst)
+	for _, bootFile := range bootFiles {
+		src := filepath.Join(options.ArtifactsPath, "arm64/", bootFile)
+		dst := filepath.Join(options.MountPrefix, "/boot/EFI/", bootFile)
+
+		err = os.MkdirAll(filepath.Dir(dst), 0o755)
+		if err != nil {
+			return err
+		}
+
+		err = copy.File(src, dst)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

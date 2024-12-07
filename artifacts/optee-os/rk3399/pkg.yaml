@@ -1,0 +1,43 @@
+name: optee-os-rk3399
+variant: alpine
+install:
+  - make
+  - patch
+  - gcc-aarch64-none-elf
+  - gcc-arm-none-eabi
+  - py3-cryptography
+  - py3-elftools
+steps:
+  - sources:
+      - url: https://github.com/OP-TEE/optee_os/archive/{{ .optee_os_version }}.tar.gz
+        destination: optee-os.tar.gz
+        sha256: "{{ .optee_os_sha256 }}"
+        sha512: "{{ .optee_os_sha512 }}"
+    env:
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    prepare:
+      - |
+        tar xf optee-os.tar.gz --strip-components=1
+
+    # rk3399
+    build:
+      - |
+        # Avoid to strip required debug symbols
+        unset CFLAGS
+        unset CXXFLAGS
+        unset LDFLAGS
+
+        make -j $(nproc) ARCH=arm PLATFORM=rockchip-rk3399 \
+          CFG_ARM64_core=y \
+          CROSS_COMPILE=aarch64-none-elf- \
+          CROSS_COMPILE32=arm-none-eabi- \
+          CROSS_COMPILE64=aarch64-none-elf-
+
+    install:
+      - |
+        mkdir -p /rootfs/optee-os/rk3399
+
+        cp out/arm-plat-rockchip/core/tee.bin /rootfs/optee-os/rk3399/tee.bin
+finalize:
+  - from: /rootfs
+    to: /libs

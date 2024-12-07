@@ -12,6 +12,11 @@ vars:
   arm_trusted_firmware_nonlts_sha256: 30abf4da07418ad0f840369c3e64dc6a0bc6a936d53a213ce10783f3d1a3430f
   arm_trusted_firmware_nonlts_sha512: 947336e5a9b2504ebea696980c09e2b99a49ec4f84b6dfb25f9ba33d09095cf32ac518c165fcf51db8b3896842bdd954c73d6e887afc5da48803914eae82bc45
 
+  # renovate: datasource=github-tags extractVersion=^-(?<version>.*)$ depName=OP-TEE/optee_os
+  optee_os_version: 4.4.0
+  optee_os_sha256: b13c65ff2abcd21a9200cb0131f34d61bde7c31eb0427fa761d27c3b87c7fec8
+  optee_os_sha512: 8c8bb79b2d9811f341cbc9cbd531d377c2460d3c4d4e112cb0a3f9e7422ee01d4cd692b3a249341e0b9cea2394bfdbbdad8e9b84c3af9288d44915fbe64138f1
+
   # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=u-boot/u-boot
   uboot_version: 2024.07
   uboot_sha256: f591da9ab90ef3d6b3d173766d0ddff90c4ed7330680897486117df390d83c8f

@@ -23,5 +23,10 @@ vars:
   linux_sha256: a1aeb926c7c4a1564368200b1082e45bb958007682d804aff88abbc3a7a47b5d
   linux_sha512: 77393001f6635e04c41bf28b8b4305b0c17339d7e70c753f73f45ada6758b3dd461cd975b3ad18123aa9e391f100b3bf8995d0b296db7cba05f9548adf636532
 
+  # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=radxa-pkg/radxa-overlays
+  radxa_overlays_version: 0.2.28
+  radxa_overlays_sha256: 84151e7994cae2f3a4b228c9a626edf8b6eb89fb7328f3371410b3988128003a
+  radxa_overlays_sha512: 502a4fdb81d85fe5c41af3fb213eb15bc68625bcdf64d69571bca87395c6611bb95801de8236a1718b013f191b7b4ea7328083c791e59ed837bdbc46c4c969a8
+
 labels:
   org.opencontainers.image.source: https://github.com/siderolabs/sbc-rockchip

@@ -1,0 +1,98 @@
+# Fork-friendly CI: builds without Siderolabs runners or remote BuildKit.
+# Push this file to your fork and optionally disable/narrow ci.yaml (default) if it fails there.
+#
+# - Triggers on every branch push and version tags (no PR required).
+# - Images go to ghcr.io/<repository_owner>/sbc-rockchip:<tag> (override USERNAME via repo env if needed).
+# - Runs on a native arm64 runner (ubuntu-24.04-arm, free for public repos) and builds linux/arm64
+#   natively (no QEMU) so the AArch64 firmware (edk2) cross-compiles correctly and the overlay image
+#   is usable on the target board. Override via workflow_dispatch 'platform' if needed.
+
+name: fork-build
+
+"on":
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "Push image to ghcr.io (false = build only)"
+        type: boolean
+        default: true
+      platform:
+        description: "Comma-separated platforms, e.g. linux/amd64 or linux/amd64,linux/arm64"
+        type: string
+        default: "linux/arm64"
+
+concurrency:
+  group: fork-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  # Fork images under your GitHub user/org (not siderolabs).
+  USERNAME: ${{ github.repository_owner }}
+  PLATFORM: linux/arm64
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    if: ${{ !startsWith(github.ref_name, 'renovate/') && !startsWith(github.ref_name, 'dependabot/') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Unshallow for SOURCE_DATE_EPOCH / git describe
+        run: git fetch --prune --unshallow || true
+
+      - name: Resolve platform
+        id: plat
+        run: |
+          P='${{ env.PLATFORM }}'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            P='${{ inputs.platform }}'
+          fi
+          echo "platform=${P}" >> "$GITHUB_OUTPUT"
+          echo "Resolved PLATFORM=${P}"
+
+      - name: Set up QEMU
+        if: contains(steps.plat.outputs.platform, 'arm64')
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Decide push
+        id: pushflag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.push }}" = "true" ]; then
+              echo "value=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # Any branch or tag push: build and push by default
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GitHub Container Registry
+        if: steps.pushflag.outputs.value == 'true'
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (and push if enabled)
+        env:
+          PLATFORM: ${{ steps.plat.outputs.platform }}
+          PUSH: ${{ steps.pushflag.outputs.value }}
+        run: make

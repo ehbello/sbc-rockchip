@@ -1,0 +1,57 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+/*
+ * RockPi 4C: repurpose spi1 from the on-board SPI-NOR flash to an external SPI
+ * TPM (TIS), matching the u-boot "spi-tpm" variant so the kernel's view of the
+ * hardware agrees with u-boot's control DTB. Compiled to a .dtbo and merged into
+ * the measured UKI DTB by the imager.
+ *
+ * The mainline base DTS (rk3399-rock-pi-4.dtsi) enables a jedec,spi-nor on spi1
+ * CS0 unconditionally; that collides with the TPM, so flash@0 is disabled here.
+ * The TPM sits on CS0 driven by a GPIO chip-select (GPIO4_D5, pin 22), and the
+ * native spi1 hardware CS0 pin (GPIO1_B2) is freed and pulled up. Uses the
+ * generic TIS-over-SPI compatible, so it carries no vendor binding.
+ *
+ * Raw pin numbers (no dt-bindings cpp includes) so it compiles with a bare dtc:
+ *   GPIO4_D5 = 3*8 + 5 = 29, RK_FUNC_GPIO = 0
+ *   GPIO1_B2 = 1*8 + 2 = 10, RK_FUNC_GPIO = 0
+ * Label references (&spi1_clk/&spi1_tx/&spi1_rx, &pcfg_pull_up) resolve at
+ * apply time against the base DTB's symbols (dtc -@).
+ */
+
+/dts-v1/;
+/plugin/;
+
+&spi1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	num-cs = <1>;
+	cs-gpios = <&gpio4 29 0>;
+	pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx>;
+
+	/* the base DTS enables a jedec,spi-nor on CS0 here; it shares spi1 */
+	flash@0 {
+		status = "disabled";
+	};
+
+	tpm@0 {
+		status = "okay";
+		compatible = "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&disable_spi1_hw_cs0>;
+
+	gpio1-b2 {
+		disable_spi1_hw_cs0: disable-spi1-hw-cs0 {
+			rockchip,pins = <1 10 0 &pcfg_pull_up>;
+		};
+	};
+};

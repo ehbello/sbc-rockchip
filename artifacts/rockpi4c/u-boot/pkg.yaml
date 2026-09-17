@@ -16,18 +16,23 @@ steps:
     env:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
     prepare:
-      # rock-pi-4c-rk3399
+      # rock-pi-4c-rk3399.
       - |
         tar xf u-boot.tar.bz2 --strip-components=1
-      - |
-        make rock-pi-4c-rk3399_defconfig
     build:
+      # Keep the SPI-NOR flash and SPI boot.
       - |
-        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" BL31=/libs/arm-trusted-firmware/rk3399/bl31.elf
-    install:
-      - |
+        scripts/kconfig/merge_config.sh configs/rock-pi-4c-rk3399_defconfig \
+          /pkg/configs/common.cfg \
+          /pkg/configs/board.cfg \
+          /pkg/configs/efi.cfg
+
+        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" \
+            BL31=/libs/arm-trusted-firmware/rk3399/bl31.elf
+
         mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c
-        cp u-boot-rockchip.bin /rootfs/artifacts/arm64/u-boot/rockpi4c
+        cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c \
+          u-boot-rockchip.bin u-boot-rockchip-spi.bin
 finalize:
   - from: /rootfs
     to: /rootfs

@@ -21,6 +21,30 @@ vars:
   edk2_platforms_sha256: 437617228eda2348ac1ab6e8f09e44ce9aa60c5e788bc765d6d595f30793833d
   edk2_platforms_sha512: 780843dae6968f0f3c4e162e0bfe56d48d365b870a539d93af5d70abbf80e1e258616810ad7ae0128f525239a16f1081b7a3dafe4512ff4b0d0c935b8794ba19
 
+  # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=OP-TEE/optee_os
+  optee_os_version: 4.10.0
+  optee_os_sha256: 18633691cb075ff2249422251f1cd77c30439a95b564b46682dea1fb6580a5af
+  optee_os_sha512: 90d83bb717dd592d317250b7e4cba52971d926b5665e0f3ff39b1b1815714ab7cfed88e6949c12fa7fac7517f54445d1b54bb1e367686056fafbf7f9c720b37f
+
+  # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=OP-TEE/optee_ftpm
+  optee_ftpm_version: 4.10.0
+  optee_ftpm_sha256: 907fd49dc9db97fc16c8e4309e8e17109a044711d053135f21690dadaf50908c
+  optee_ftpm_sha512: 9c7cf779424e1a50657c09f130c7a775936e97ec41d465ea6e31fe24a54ec862041684075fdf4a6b2767be21e117153a465ed389c11b5707f4d60c32ff176b2c
+
+  # The TPM 2.0 reference implementation the fTPM TA wraps. Historical_Samples is
+  # the tag ms-tpm-20-ref publishes the TCG reference code under; it moves rarely
+  # and the hashes below pin the exact tarball.
+  # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=Microsoft/ms-tpm-20-ref
+  ms_tpm_20_ref_version: Historical_Samples
+  ms_tpm_20_ref_sha256: c69b64a858fa43a0172f0c3c5fb69e5401db7190e5046474dc46d3232aa8828a
+  ms_tpm_20_ref_sha512: 8138d9292b185a179d72a273ae1737378f340d72acb0e3bafa83867e79c8056b551626fd9b745353f61646344ee34cab152654455bd35d46b7bc8838ddd70372
+
+  # Crypto backend for ms-tpm-20-ref inside the TA.
+  # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=wolfSSL/wolfssl
+  wolfssl_version: 5.7.6-stable
+  wolfssl_sha256: 52b1e439e30d1ed8162a16308a8525a862183b67aa30373b11166ecbab000d63
+  wolfssl_sha512: 502f01467bcda853a4aed6ce01213d568609444e35e1b7f2faeb19e49e7002d93fd9bfd490c7dd5225812785c32b4308a6594631f5c6a157784d352ef28b508c
+
   # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=u-boot/u-boot
   uboot_version: 2026.01
   uboot_sha256: b60d5865cefdbc75da8da4156c56c458e00de75a49b80c1a2e58a96e30ad0d54

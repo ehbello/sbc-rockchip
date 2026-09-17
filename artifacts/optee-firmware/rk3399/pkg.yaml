@@ -1,0 +1,106 @@
+# References:
+#   OP-TEE:
+#     - https://optee.readthedocs.io/en/latest/building/index.html
+#   fTPM trusted application:
+#     - https://github.com/OP-TEE/optee_ftpm
+name: optee-firmware-rk3399
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+  - stage: edk2-firmware-aarch64
+steps:
+  - sources:
+      - url: https://github.com/Microsoft/ms-tpm-20-ref/archive/{{ .ms_tpm_20_ref_version }}.tar.gz
+        destination: ms-tpm-20-ref.tar.gz
+        sha256: "{{ .ms_tpm_20_ref_sha256 }}"
+        sha512: "{{ .ms_tpm_20_ref_sha512 }}"
+      - url: https://github.com/OP-TEE/optee_os/archive/{{ .optee_os_version }}.tar.gz
+        destination: optee_os.tar.gz
+        sha256: "{{ .optee_os_sha256 }}"
+        sha512: "{{ .optee_os_sha512 }}"
+      - url: https://github.com/OP-TEE/optee_ftpm/archive/{{ .optee_ftpm_version }}.tar.gz
+        destination: optee_ftpm.tar.gz
+        sha256: "{{ .optee_ftpm_sha256 }}"
+        sha512: "{{ .optee_ftpm_sha512 }}"
+      - url: https://github.com/wolfSSL/wolfssl/archive/v{{ .wolfssl_version }}.tar.gz
+        destination: wolfssl.tar.gz
+        sha256: "{{ .wolfssl_sha256 }}"
+        sha512: "{{ .wolfssl_sha512 }}"
+    env:
+      # The fTPM TA's well-known UUID; also what the Linux tpm_ftpm_tee driver
+      # and u-boot's CONFIG_TPM2_FTPM_TEE open a session to.
+      FTPM_UUID: "bc50d971-d4c9-42c4-82cb-343fb7f37896"
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    network: default
+    prepare:
+      - |
+        # Used by optee_os' sign_encrypt.py to sign the TAs.
+        pip3 install cryptography
+      - |
+        mkdir -p optee_os && tar xf optee_os.tar.gz --strip-components=1 -C optee_os
+        rm optee_os.tar.gz
+      - |
+        mkdir -p ms-tpm-20-ref && tar xf ms-tpm-20-ref.tar.gz --strip-components=1 -C ms-tpm-20-ref
+        rm ms-tpm-20-ref.tar.gz
+      - |
+        # wolfSSL is the TA's crypto backend; ms-tpm-20-ref expects it in tree.
+        mkdir -p ms-tpm-20-ref/external/wolfssl && tar xf wolfssl.tar.gz --strip-components=1 -C ms-tpm-20-ref/external/wolfssl
+        rm wolfssl.tar.gz
+      - |
+        mkdir -p optee_ftpm && tar xf optee_ftpm.tar.gz --strip-components=1 -C optee_ftpm
+        rm optee_ftpm.tar.gz
+    build:
+      - |
+        # The TA dev kit has to exist before the TA can be compiled against it.
+        make -j $(nproc) -C optee_os ta_dev_kit \
+          ARCH=arm PLATFORM=rockchip-rk3399 \
+          CROSS_COMPILE64= \
+          CFG_USER_TA_TARGETS="ta_arm64" \
+          CFG_ARM64_core=y \
+          CFG_EARLY_TA=y
+      - |
+        make -j $(nproc) -C optee_ftpm \
+          CROSS_COMPILE= \
+          TA_DEV_KIT_DIR=${PWD}/optee_os/out/arm-plat-rockchip/export-ta_arm64 \
+          CFG_MS_TPM_20_REF=${PWD}/ms-tpm-20-ref
+      - |
+        # Avoid to strip required debug symbols
+        unset CFLAGS
+        unset CXXFLAGS
+        unset LDFLAGS
+
+        make -j $(nproc) -C optee_os \
+          ARCH=arm PLATFORM=rockchip-rk3399 \
+          CROSS_COMPILE64= \
+          CFG_ARM64_core=y \
+          CFG_USER_TA_TARGETS="ta_arm64" \
+          CFG_STMM_PATH=/libs/edk2-firmware/aarch64/BL32_AP_MM.fd \
+          CFG_EARLY_TA=y \
+          EARLY_TA_PATHS="${PWD}/optee_ftpm/${FTPM_UUID}.stripped.elf" \
+          CFG_IN_TREE_EARLY_TAS=pkcs11/fd02c9da-306c-48c7-a49c-bbd827ae86ee \
+          CFG_CORE_BGET_BESTFIT=y \
+          CFG_CORE_DYN_SHM=y \
+          CFG_CORE_HEAP_SIZE=131072 \
+          CFG_EARLY_CONSOLE=y \
+          CFG_TEE_CORE_LOG_LEVEL=2 \
+          CFG_DRAM_BASE=0x0 \
+          CFG_DRAM_SIZE=0x30000000 \
+          CFG_NSEC_DDR_1_BASE=0x32400000 \
+          CFG_NSEC_DDR_1_SIZE=0xC5A00000 \
+          CFG_REE_FS=n \
+          CFG_RPMB_FS=y \
+          CFG_RPMB_FS_CACHE_ENTRIES=48 \
+          CFG_RPMB_FS_DEV_ID=0 \
+          CFG_RPMB_TESTKEY=y \
+          CFG_RPMB_WRITE_KEY=n \
+          CFG_SCTLR_ALIGNMENT_CHECK=n
+    install:
+      - |
+        mkdir -p /rootfs/optee-firmware/rk3399
+
+        cp -t /rootfs/optee-firmware/rk3399/ \
+          optee_os/out/arm-plat-rockchip/core/tee.bin
+finalize:
+  - from: /rootfs
+    to: /libs

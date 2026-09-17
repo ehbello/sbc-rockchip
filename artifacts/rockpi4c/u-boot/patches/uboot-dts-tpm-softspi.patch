@@ -1,0 +1,61 @@
+Drive an SPI TPM over soft-SPI in the u-boot control DTB (TPM variant only).
+
+The rk3399 native spi1 chip-select is claimed by hardware and unusable here, and
+the hardware SPI controller is unsuitable for a TPM, so disable spi1 and add a
+spi-gpio bus bit-banging the spi1 pins + a GPIO chip-select, with a generic TPM
+TIS device (tcg,tpm_tis-spi). With the TPM visible, u-boot exposes
+EFI_TCG2_PROTOCOL so systemd-stub measures the UKI into PCR 11. Disabling spi1
+means SPI-NOR boot is unavailable in this variant (see the SPL_SPI note in
+tpm.cfg); the default variant keeps the flash.
+
+--- a/arch/arm/dts/rk3399-rock-pi-4c-u-boot.dtsi	2026-08-10 23:42:27.304229268 +0100
++++ b/arch/arm/dts/rk3399-rock-pi-4c-u-boot.dtsi	2026-08-10 23:42:27.423978468 +0100
+@@ -5,9 +5,45 @@
+ 
+ #include "rk3399-rock-pi-4-u-boot.dtsi"
+ 
++/*
++ * The rk3399 native spi1 chip-select is claimed by hardware and unusable on
++ * this board, and the hardware SPI controller cannot be used for a TPM here.
++ * Drive an SPI TPM over soft-SPI (bit-banged GPIO on the spi1 pins) so u-boot
++ * can measure the UKI into PCR 11. Inert if no TPM is wired.
++ */
+ &spi1 {
+-	flash@0 {
+-		bootph-pre-ram;
+-		bootph-some-ram;
++	status = "disabled";
++};
++
++/ {
++	tpm-spi {
++		compatible = "spi-gpio";
++		#address-cells = <1>;
++		#size-cells = <0>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&tpm_spi_gpio_pins>;
++		gpio-sck = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
++		gpio-mosi = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
++		gpio-miso = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
++		cs-gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_LOW>;
++		num-chipselects = <1>;
++
++		tpm@0 {
++			compatible = "tcg,tpm_tis-spi";
++			reg = <0>;
++			spi-max-frequency = <1000000>;
++		};
++	};
++};
++
++&pinctrl {
++	tpm-spi {
++		tpm_spi_gpio_pins: tpm-spi-gpio-pins {
++			rockchip,pins =
++				<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,
++				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
++				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
++				<4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
+ 	};
+ };

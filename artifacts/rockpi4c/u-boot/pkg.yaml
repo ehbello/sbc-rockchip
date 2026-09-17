@@ -16,12 +16,20 @@ steps:
     env:
       SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
     prepare:
-      # rock-pi-4c-rk3399.
       - |
         tar xf u-boot.tar.bz2 --strip-components=1
     build:
-      # Keep the SPI-NOR flash and SPI boot.
+      # Two variants are built from the same source:
+      #   rockpi4c      -- default: SPI-NOR flash boot, no TPM (flash preserved);
+      #   rockpi4c-spi-tpm  -- soft-SPI external TPM (enables measured boot),
+      #                        no SPI-NOR flash.
+      # The installer picks one via the `uBootVariant` overlay option. Kernel
+      # device tree overlays describing what the firmware changes live under
+      # overlays/common/ (every variant) and overlays/<variant>/; the last step
+      # compiles them into each variant's artifacts overlays/ directory, which
+      # the imager merges into the measured UKI DTB so u-boot and the kernel agree.
       - |
+        # Variant 1: default (keeps the SPI-NOR flash + SPI boot).
         scripts/kconfig/merge_config.sh configs/rock-pi-4c-rk3399_defconfig \
           /pkg/configs/common.cfg \
           /pkg/configs/board.cfg \
@@ -33,6 +41,41 @@ steps:
         mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c
         cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c \
           u-boot-rockchip.bin u-boot-rockchip-spi.bin
+      - |
+        # Variant 2: TPM (soft-SPI measured boot; spi1/SPL_SPI disabled -> no
+        # SPI-NOR boot, and no u-boot-rockchip-spi.bin).
+        make mrproper
+        patch -p1 < /pkg/patches/uboot-dts-tpm-softspi.patch
+
+        scripts/kconfig/merge_config.sh configs/rock-pi-4c-rk3399_defconfig \
+          /pkg/configs/common.cfg \
+          /pkg/configs/board.cfg \
+          /pkg/configs/efi.cfg \
+          /pkg/configs/measured-boot.cfg \
+          /pkg/configs/tpm.cfg
+
+        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" \
+            BL31=/libs/arm-trusted-firmware/rk3399/bl31.elf
+
+        mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c-spi-tpm
+        cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c-spi-tpm \
+          u-boot-rockchip.bin
+      - |
+        # Kernel overlays: every .dtso under overlays/common/ and overlays/<variant>/
+        # is compiled into that variant's overlays/ artifacts directory. Raw pin
+        # numbers only, no cpp includes; -@ keeps symbols for fdtoverlay.
+        #
+        # The directory is created even when a variant has no overlays: the
+        # installer always points the imager at it and the imager stats the path,
+        # failing the build if it is absent.
+        for variant in rockpi4c rockpi4c-spi-tpm; do
+          out=/rootfs/artifacts/arm64/u-boot/${variant}/overlays
+          mkdir -p "${out}"
+          for src in /pkg/overlays/common/*.dtso /pkg/overlays/${variant}/*.dtso; do
+            [ -e "${src}" ] || continue
+            dtc -@ -I dts -O dtb -o "${out}/$(basename "${src%.dtso}").dtbo" "${src}"
+          done
+        done
 finalize:
   - from: /rootfs
     to: /rootfs

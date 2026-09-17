@@ -8,6 +8,19 @@ vars:
   arm_trusted_firmware_sha256: bb15ce95447a987ca8acbaa45126a338671da3c330c41283e3ded969ff1501f2
   arm_trusted_firmware_sha512: 0837049d583a0641b98a892bd83a0de7a28019386cedc87a53984d65aa027b85973215036bdda49ac40f486e1869182320da20ee3f517662434030d1d48f69a7
 
+  # renovate: datasource=github-tags extractVersion=^(?<version>.*)$ depName=tianocore/edk2
+  edk2_version: edk2-stable202508
+  # Commit the tag resolves to. edk2 has to be cloned (its submodules carry the
+  # crypto libraries and are not in the release tarball), so it is pinned by
+  # commit instead of by tarball hash: the commit fixes every submodule gitlink
+  # too, which makes the whole checkout content-addressed.
+  edk2_commit: d46aa46c8361194521391aa581593e556c707c6e
+
+  # renovate: datasource=git-refs versioning=git depName=https://github.com/tianocore/edk2-platforms.git
+  edk2_platforms_ref: d82aa92c1d360c1b53ccad4dc45bdd8164a560d5
+  edk2_platforms_sha256: 437617228eda2348ac1ab6e8f09e44ce9aa60c5e788bc765d6d595f30793833d
+  edk2_platforms_sha512: 780843dae6968f0f3c4e162e0bfe56d48d365b870a539d93af5d70abbf80e1e258616810ad7ae0128f525239a16f1081b7a3dafe4512ff4b0d0c935b8794ba19
+
   # renovate: datasource=github-tags extractVersion=^v(?<version>.*)$ depName=u-boot/u-boot
   uboot_version: 2026.01
   uboot_sha256: b60d5865cefdbc75da8da4156c56c458e00de75a49b80c1a2e58a96e30ad0d54

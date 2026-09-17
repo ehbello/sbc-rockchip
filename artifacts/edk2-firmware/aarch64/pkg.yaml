@@ -1,0 +1,68 @@
+# References:
+#   StandaloneMM:
+#     - https://optee.readthedocs.io/en/latest/building/efi_vars/stmm.html
+#     - https://github.com/tianocore/edk2-platforms/tree/master/Platform/StandaloneMm
+name: edk2-firmware-aarch64
+variant: scratch
+shell: /bin/bash
+dependencies:
+  - stage: base
+steps:
+  - sources:
+      - url: https://github.com/tianocore/edk2-platforms/archive/{{ .edk2_platforms_ref }}.tar.gz
+        destination: edk2-platforms.tar.gz
+        sha256: "{{ .edk2_platforms_sha256 }}"
+        sha512: "{{ .edk2_platforms_sha512 }}"
+    env:
+      SOURCE_DATE_EPOCH: {{ .BUILD_ARG_SOURCE_DATE_EPOCH }}
+    # edk2 itself is cloned rather than fetched as a tarball: the build needs the
+    # submodules (BaseTools/Source/C/BrotliCompress, CryptoPkg/Library/OpensslLib,
+    # MdeModulePkg/Library/BrotliCustomDecompressLib, ...) and the GitHub release
+    # tarball does not contain them.
+    network: default
+    prepare:
+      - |
+        git clone --recurse-submodules --branch {{ .edk2_version }} \
+          https://github.com/tianocore/edk2.git
+
+        # A tag is mutable; the commit it pointed at when this was pinned is not,
+        # and it transitively pins every submodule. Refuse to build anything else.
+        head=$(git -C edk2 rev-parse HEAD)
+        if [ "${head}" != "{{ .edk2_commit }}" ]; then
+          echo "edk2 {{ .edk2_version }} is ${head}, expected {{ .edk2_commit }}"
+          exit 1
+        fi
+      - |
+        mkdir -p edk2-platforms && tar xf edk2-platforms.tar.gz --strip-components=1 -C edk2-platforms
+        rm edk2-platforms.tar.gz
+    build:
+      - |
+        export WORKSPACE=$(pwd)
+        export PACKAGES_PATH=$WORKSPACE/edk2:$WORKSPACE/edk2-platforms
+
+        export ACTIVE_PLATFORM="edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc"
+        export GCCNOLTO_AARCH64_PREFIX=
+
+        set +o nounset
+        source edk2/edksetup.sh
+        set -o nounset
+
+        # GCC 15 raises many -Werror=maybe-uninitialized false positives in
+        # edk2 (which already suppresses the same warning for its bundled
+        # mbedTLS). Relax it globally for this platform build.
+        printf '\n[BuildOptions]\n  GCC:*_*_*_CC_FLAGS = -Wno-error=maybe-uninitialized\n' >> "$ACTIVE_PLATFORM"
+
+        # BaseTools still builds the antique K&R Pccts/dlg lexer generator at
+        # this edk2 release; GCC 15 defaults to C23 and rejects it. Build the
+        # host tools with an older C standard (no edk2 source patch needed).
+        make -C ${EDK_TOOLS_PATH} CC="gcc -std=gnu17"
+
+        build -p $ACTIVE_PLATFORM -b RELEASE -a AARCH64 -t GCCNOLTO -n `nproc`
+    install:
+      - |
+        mkdir -p /rootfs/edk2-firmware/aarch64
+
+        cp Build/MmStandaloneRpmb/RELEASE_GCCNOLTO/FV/BL32_AP_MM.fd /rootfs/edk2-firmware/aarch64/BL32_AP_MM.fd
+finalize:
+  - from: /rootfs
+    to: /libs

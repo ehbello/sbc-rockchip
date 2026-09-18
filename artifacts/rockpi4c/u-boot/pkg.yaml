@@ -38,6 +38,14 @@ steps:
       # overlays/common/ (every variant) and overlays/<variant>/; the last step
       # compiles them into each variant's artifacts overlays/ directory, which
       # the imager merges into the measured UKI DTB so u-boot and the kernel agree.
+      #
+      # Besides the packed boot images, each variant publishes the pieces they are
+      # packed from -- the TPL, the SPL with its control device tree, and the FIT.
+      # That is what lets the installer put a public key in the SPL device tree,
+      # sign the FIT with the matching private half and pack the result again, so
+      # the SPL will only load the FIT it was written to the disk with. Signing
+      # there rather than here keeps this build reproducible: a key generated in
+      # CI would make every run of the same commit publish different bytes.
       - |
         # Variant 1: default (keeps the SPI-NOR flash + SPI boot).
         scripts/kconfig/merge_config.sh configs/rock-pi-4c-rk3399_defconfig \
@@ -50,7 +58,17 @@ steps:
 
         mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c
         cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c \
-          u-boot-rockchip.bin u-boot-rockchip-spi.bin
+          u-boot-rockchip.bin u-boot-rockchip-spi.bin \
+          u-boot.itb tpl/u-boot-tpl.bin spl/u-boot-spl.bin spl/u-boot-spl.dtb
+
+        # The host tools the installer signs with, from the same source tree as
+        # the firmware they operate on: fdt_add_pubkey puts the public key in the
+        # SPL device tree, mkimage signs the FIT and rebuilds the Rockchip ID
+        # block, fit_check_sign is the verifier the SPL itself runs. Both variants
+        # are built from this tree, so the tools are shipped once for the board.
+        mkdir -p /rootfs/artifacts/arm64/u-boot-tools/rockpi4c
+        cp -v -t /rootfs/artifacts/arm64/u-boot-tools/rockpi4c \
+          tools/mkimage tools/fdt_add_pubkey tools/fit_check_sign
       - |
         # Variant 2: TPM (soft-SPI measured boot; spi1/SPL_SPI disabled -> no
         # SPI-NOR boot, and no u-boot-rockchip-spi.bin).
@@ -69,7 +87,8 @@ steps:
 
         mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c-spi-tpm
         cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c-spi-tpm \
-          u-boot-rockchip.bin
+          u-boot-rockchip.bin \
+          u-boot.itb tpl/u-boot-tpl.bin spl/u-boot-spl.bin spl/u-boot-spl.dtb
       - |
         # Kernel overlays: every .dtso under overlays/common/ and overlays/<variant>/
         # is compiled into that variant's overlays/ artifacts directory. Raw pin

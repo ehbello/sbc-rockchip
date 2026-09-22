@@ -6,8 +6,8 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/signal"
@@ -33,6 +33,26 @@ const (
 	// in a "<board>[-<variant>]" subdirectory (see artifacts/pkg.yaml). A variant
 	// may ship matching device tree overlays under its overlays/ subdirectory.
 	uBootDir = "arm64/u-boot"
+
+	// uBootToolsDir holds the u-boot host tools the FIT signing path runs:
+	// fdt_add_pubkey, mkimage and fit_check_sign. They come out of the same
+	// u-boot build the firmware does, so they match the images they operate on.
+	// They are shipped once for the board rather than per variant, since both
+	// variants are built from one source tree.
+	//
+	// The u-boot package is pinned to linux/arm64 (see installers/pkg.yaml), so
+	// these are arm64 binaries: signing needs the imager to be running on arm64.
+	// The default, unsigned path shells out to nothing and is unaffected.
+	uBootToolsDir = "arm64/u-boot-tools/rockpi4c"
+
+	// partitionOffsetSectors is how far out the first partition is pushed to
+	// leave room for the boot blob, in sectors.
+	partitionOffsetSectors = 2048 * 10
+
+	// firstPartitionOffset is the same bound in bytes. A sector is at least 512
+	// bytes, so this is the lowest the first partition can start and therefore
+	// the safe limit for the boot blob to stay under.
+	firstPartitionOffset int64 = partitionOffsetSectors * 512
 )
 
 func main() {
@@ -65,6 +85,15 @@ type rockPi4cExtraOptions struct {
 	// nothing TPM-specific. A string so it decodes the same whether passed as a
 	// CLI --overlay-option (always a string) or in a profile's overlay options.
 	UBootVariant string `yaml:"uBootVariant,omitempty"`
+	// FITSigningKey turns on SPL verification of the u-boot FIT and says where
+	// the signing key comes from. The default ("") writes the u-boot image the
+	// artifacts ship, untouched and unsigned. "ephemeral" makes the image build
+	// generate a throwaway key, sign the FIT with it and pin its public half in
+	// the SPL control device tree, so the SPL will only load the FIT it was
+	// written to the disk with. Naming the key source rather than taking a
+	// boolean leaves room for the key the rk3399 eFuse will eventually pin,
+	// which has to be the user's and outlive the image build.
+	FITSigningKey string `yaml:"fitSigningKey,omitempty"`
 }
 
 func (i *rockPi4c) GetOptions(_ context.Context, extra rockPi4cExtraOptions) (overlay.Options, error) {
@@ -77,7 +106,7 @@ func (i *rockPi4c) GetOptions(_ context.Context, extra rockPi4cExtraOptions) (ov
 			"talos.dashboard.disabled=1",
 		},
 		PartitionOptions: overlay.PartitionOptions{
-			Offset: 2048 * 10,
+			Offset: partitionOffsetSectors,
 		},
 		// Embed the (measured) base device tree in the UKI. Board overlays are
 		// opt-in via the dtOverlays extra option and merged on top at image
@@ -147,29 +176,49 @@ func deviceTreeOverlays(dtOverlays string) []string {
 	return overlays
 }
 
-func (i *rockPi4c) Install(_ context.Context, options overlay.InstallOptions[rockPi4cExtraOptions]) error {
+func (i *rockPi4c) Install(ctx context.Context, options overlay.InstallOptions[rockPi4cExtraOptions]) error {
 	uBootBoard := board
 	if options.ExtraOptions.UBootVariant != "" {
 		uBootBoard = board + "-" + options.ExtraOptions.UBootVariant
 	}
 
-	uBootBin := filepath.Join(options.ArtifactsPath, uBootDir, uBootBoard, "u-boot-rockchip.bin")
+	uBoot := filepath.Join(options.ArtifactsPath, uBootDir, uBootBoard)
 
-	return uBootLoaderInstall(uBootBin, options.InstallDisk)
+	key, err := newFITSigningKey(options.ExtraOptions.FITSigningKey)
+	if err != nil {
+		return err
+	}
+
+	var image []byte
+
+	if key == nil {
+		// No signing asked for: write the image the u-boot package packed, as it
+		// packed it.
+		image, err = os.ReadFile(filepath.Join(uBoot, "u-boot-rockchip.bin"))
+	} else {
+		image, err = signedUBoot(ctx, filepath.Join(options.ArtifactsPath, uBootToolsDir), uBoot, key)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return uBootLoaderInstall(image, options.InstallDisk)
 }
 
-func uBootLoaderInstall(uBootBin, installDisk string) error {
+func uBootLoaderInstall(uboot []byte, installDisk string) error {
+	// Signing grows the image, so check it still clears the first partition
+	// rather than let it corrupt one.
+	if end := off + int64(len(uboot)); end > firstPartitionOffset {
+		return fmt.Errorf("the boot blob ends at %d, past the first partition at %d", end, firstPartitionOffset)
+	}
+
 	f, err := os.OpenFile(installDisk, unix.O_RDWR|unix.O_CLOEXEC, 0o666)
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %w", installDisk, err)
 	}
 
 	defer f.Close() //nolint:errcheck
-
-	uboot, err := os.ReadFile(uBootBin)
-	if err != nil {
-		return err
-	}
 
 	if _, err = f.WriteAt(uboot, off); err != nil {
 		return err

@@ -1,0 +1,51 @@
+Describe the secure world in u-boot's own control device tree.
+
+Applied to the rockpi4c-ftpm variant only: it is the one that packs OP-TEE as
+BL32, and the others have no secure world to describe.
+
+This patch reserves nothing and configures no memory: it only adds two nodes to
+the device tree u-boot runs on, so u-boot's driver model can bind to firmware
+that is already there.
+
+  /firmware/optee  is what drivers/tee/optee probes on. Without it u-boot never
+                   opens a TEE context, so nothing that goes through OP-TEE --
+                   the fTPM, RPMB secure storage, the OP-TEE RNG -- comes up.
+                   u-boot also copies this node into the kernel's device tree
+                   via EFI_DT_FIXUP_PROTOCOL, so it is how the kernel learns
+                   OP-TEE exists on the non-UKI boot path.
+
+  /tpm             the fTPM, matched by "microsoft,ftpm". The TA is linked into
+                   the tee.bin this variant loads, so the node describes
+                   something that is genuinely there, and CONFIG_TPM2_FTPM_TEE
+                   builds the driver that binds to it.
+
+The nodes go in rk3399-u-boot.dtsi, which rk3399-rock-pi-4c-u-boot.dtsi reaches
+through rk3399-rock-pi-4-u-boot.dtsi, rather than in the vendored upstream board
+.dts under dts/upstream/ -- that subtree tracks devicetree-rebasing and should
+not be edited downstream.
+
+What the kernel needs is a *reservation* of the DRAM OP-TEE owns, and that is a
+separate thing entirely: see overlays/rockpi4c-ftpm/rk3399-rock-pi-4c-optee.dtso,
+which is merged into the measured UKI device tree.
+
+diff --git i/arch/arm/dts/rk3399-u-boot.dtsi w/arch/arm/dts/rk3399-u-boot.dtsi
+--- i/arch/arm/dts/rk3399-u-boot.dtsi
++++ w/arch/arm/dts/rk3399-u-boot.dtsi
+@@ -16,6 +16,17 @@
+ 		u-boot,spl-boot-order = "same-as-spl", &sdhci, &sdmmc;
+ 	};
+
++	firmware {
++		optee {
++			compatible = "linaro,optee-tz";
++			method = "smc";
++		};
++	};
++
++	tpm {
++		compatible = "microsoft,ftpm";
++	};
++
+ 	pmusgrf: syscon@ff330000 {
+ 		compatible = "rockchip,rk3399-pmusgrf", "syscon";
+ 		reg = <0x0 0xff330000 0x0 0xe3d4>;

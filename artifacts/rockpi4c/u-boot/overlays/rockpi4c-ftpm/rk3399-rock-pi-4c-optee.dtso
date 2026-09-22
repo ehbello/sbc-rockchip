@@ -1,0 +1,56 @@
+// Reserve OP-TEE's DRAM in the kernel device tree.
+//
+// The rockpi4c-ftpm u-boot variant -- the only one that does -- boots with
+// OP-TEE (artifacts/optee-firmware/rk3399), which owns
+// [0x30000000, 0x32400000): CFG_TZDRAM_START=0x30000000
+// (32 MiB, the TEE core, firewalled from the non-secure world) followed by
+// CFG_SHMEM_START=0x32000000 (4 MiB static shared memory); OP-TEE is built with
+// CFG_DRAM_SIZE=0x30000000 and CFG_NSEC_DDR_1_BASE=0x32400000 accordingly.
+//
+// The kernel has to be told, and with the DTB embedded in the measured UKI
+// nobody does: the board DTB has no reserved-memory node, and although the
+// systemd-stub hands the DTB to u-boot's EFI_DT_FIXUP_PROTOCOL, u-boot's
+// optee_copy_fdt_nodes() can only copy reserved-memory nodes that exist in its
+// own control DT -- and OP-TEE never inserted them there either ("No non-secure
+// external DT"). The kernel then treats the window as ordinary RAM and the first
+// store into a page there is answered by the DDR firewall with a bus error: an
+// asynchronous SError (ESR 0xbf000000) or, on a load, a synchronous external
+// abort (0x96000010). It only fires under bulk allocation (LUKS format, image
+// pulls, kexec), which made it look like a hardware fault for weeks.
+//
+// Node names start with "optee" and are no-map, matching what u-boot generates
+// on the non-UKI path. It lives under overlays/rockpi4c-ftpm/ so the imager
+// merges it into the measured UKI DTB for that variant alone: the variants
+// without a secure world must not lose 36 MiB to a TEE they never load (see
+// pkg.yaml and installers/rockpi4c).
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	/* Same as the rk3399 root; declared so dtc can lint the fragment alone. */
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		optee_core@30000000 {
+			reg = <0x0 0x30000000 0x0 0x02000000>;
+			no-map;
+		};
+
+		optee_shm@32000000 {
+			reg = <0x0 0x32000000 0x0 0x00400000>;
+			no-map;
+		};
+	};
+};

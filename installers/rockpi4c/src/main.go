@@ -37,8 +37,8 @@ const (
 	// uBootToolsDir holds the u-boot host tools the FIT signing path runs:
 	// fdt_add_pubkey, mkimage and fit_check_sign. They come out of the same
 	// u-boot build the firmware does, so they match the images they operate on.
-	// They are shipped once for the board rather than per variant, since both
-	// variants are built from one source tree.
+	// They are shipped once for the board rather than per variant, since every
+	// variant is built from one source tree.
 	//
 	// The u-boot package is pinned to linux/arm64 (see installers/pkg.yaml), so
 	// these are arm64 binaries: signing needs the imager to be running on arm64.

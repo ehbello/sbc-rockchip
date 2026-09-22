@@ -7,6 +7,7 @@ shell: /bin/bash
 dependencies:
   - stage: base
   - stage: arm-trusted-firmware-rk3399
+  - stage: optee-firmware-rk3399
 steps:
   - sources:
       - url: https://ftp.denx.de/pub/u-boot/u-boot-{{ .uboot_version }}.tar.bz2
@@ -50,10 +51,16 @@ steps:
           head -c $((16384 - 24)) /dev/zero
         } > ubootefi.var
     build:
-      # Two variants are built from the same source:
+      # Three variants are built from the same source:
       #   rockpi4c      -- default: SPI-NOR flash boot, no TPM (flash preserved);
       #   rockpi4c-spi-tpm  -- soft-SPI external TPM (enables measured boot),
-      #                        no SPI-NOR flash.
+      #                        no SPI-NOR flash;
+      #   rockpi4c-ftpm -- opt-in: OP-TEE as BL32 with the Microsoft firmware
+      #                    TPM inside it, so measured boot needs no extra
+      #                    hardware; SPI-NOR flash boot preserved. This is the
+      #                    only variant that loads a secure world; read
+      #                    README.md before choosing it, the fTPM's limits on
+      #                    this SoC are real.
       # The installer picks one via the `uBootVariant` overlay option. Kernel
       # device tree overlays describing what the firmware changes live under
       # overlays/common/ (every variant) and overlays/<variant>/; the last step
@@ -85,8 +92,8 @@ steps:
         # The host tools the installer signs with, from the same source tree as
         # the firmware they operate on: fdt_add_pubkey puts the public key in the
         # SPL device tree, mkimage signs the FIT and rebuilds the Rockchip ID
-        # block, fit_check_sign is the verifier the SPL itself runs. Both variants
-        # are built from this tree, so the tools are shipped once for the board.
+        # block, fit_check_sign is the verifier the SPL itself runs. Every variant
+        # is built from this tree, so the tools are shipped once for the board.
         mkdir -p /rootfs/artifacts/arm64/u-boot-tools/rockpi4c
         cp -v -t /rootfs/artifacts/arm64/u-boot-tools/rockpi4c \
           tools/mkimage tools/fdt_add_pubkey tools/fit_check_sign
@@ -111,6 +118,37 @@ steps:
           u-boot-rockchip.bin \
           u-boot.itb tpl/u-boot-tpl.bin spl/u-boot-spl.bin spl/u-boot-spl.dtb
       - |
+        # Variant 3: firmware TPM (opt-in; OP-TEE as BL32 with the fTPM trusted
+        # application inside it, SPI-NOR flash + SPI boot kept).
+        #
+        # `make mrproper` does not revert patches, so the previous variant's
+        # soft-SPI TPM control device tree is undone before this variant's
+        # secure-world nodes go in: the two are alternative TPM transports and
+        # must never share one control device tree.
+        make mrproper
+        patch -R -p1 < /pkg/patches/uboot-dts-tpm-softspi.patch
+        patch -p1 < /pkg/patches/uboot-dts-optee-ftpm-nodes.patch
+
+        scripts/kconfig/merge_config.sh configs/rock-pi-4c-rk3399_defconfig \
+          /pkg/configs/common.cfg \
+          /pkg/configs/board.cfg \
+          /pkg/configs/efi.cfg \
+          /pkg/configs/measured-boot.cfg \
+          /pkg/configs/optee.cfg \
+          /pkg/configs/ftpm.cfg
+
+        # TEE= is what makes the SPL pack OP-TEE into the FIT as BL32, so BL31
+        # (built with SPD=opteed, see artifacts/arm-trusted-firmware/rk3399)
+        # hands control to it before entering u-boot proper.
+        make -j $(nproc) HOSTLDLIBS_mkimage="-lssl -lcrypto" \
+            BL31=/libs/arm-trusted-firmware/rk3399/bl31.elf \
+            TEE=/libs/optee-firmware/rk3399/tee.bin
+
+        mkdir -p /rootfs/artifacts/arm64/u-boot/rockpi4c-ftpm
+        cp -v -t /rootfs/artifacts/arm64/u-boot/rockpi4c-ftpm \
+          u-boot-rockchip.bin u-boot-rockchip-spi.bin \
+          u-boot.itb tpl/u-boot-tpl.bin spl/u-boot-spl.bin spl/u-boot-spl.dtb
+      - |
         # Kernel overlays: every .dtso under overlays/common/ and overlays/<variant>/
         # is compiled into that variant's overlays/ artifacts directory. Raw pin
         # numbers only, no cpp includes; -@ keeps symbols for fdtoverlay.
@@ -118,7 +156,7 @@ steps:
         # The directory is created even when a variant has no overlays: the
         # installer always points the imager at it and the imager stats the path,
         # failing the build if it is absent.
-        for variant in rockpi4c rockpi4c-spi-tpm; do
+        for variant in rockpi4c rockpi4c-spi-tpm rockpi4c-ftpm; do
           out=/rootfs/artifacts/arm64/u-boot/${variant}/overlays
           mkdir -p "${out}"
           for src in /pkg/overlays/common/*.dtso /pkg/overlays/${variant}/*.dtso; do

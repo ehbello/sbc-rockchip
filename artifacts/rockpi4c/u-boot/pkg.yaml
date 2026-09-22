@@ -28,6 +28,27 @@ steps:
         # It goes in prepare rather than per variant because `make mrproper` does
         # not revert patches, so applying it once covers every variant.
         patch -p1 --fuzz=0 < /pkg/patches/uboot-mkimage-copy-in-process.patch
+      - |
+        # An empty UEFI variable store, the space CONFIG_EFI_VARIABLES_PRESEED
+        # reserves for the Secure Boot keys of whoever builds an image (see
+        # configs/efi.cfg). Nothing user specific is built in here: the published
+        # firmware carries only this, stays in setup mode and enforces nothing.
+        #
+        # The layout is struct efi_var_file from include/efi_variable.h: an 8-byte
+        # reserved field that has to be zero, the magic (which is the ASCII
+        # "UbEfiVa" and a version byte), the length including that 24-byte header,
+        # and a CRC32 over everything after it. Empty means length 24 and, since
+        # u-boot computes crc32(0, buf->var, length - 24) over no bytes, a CRC of
+        # zero. efi_var_restore() walks entries only as far as the length, so the
+        # slack past it is ignored and can hold a larger store later.
+        #
+        # 16 KiB is room for PK, KEK, db and a dbx even with 4096-bit keys; the
+        # blob is embedded verbatim (.incbin in efi_var_seed.S), so the size here
+        # is the size in the image, and the installer can replace the contents
+        # without changing any offset.
+        { printf '\0\0\0\0\0\0\0\0UbEfiVa\001\030\0\0\0\0\0\0\0'
+          head -c $((16384 - 24)) /dev/zero
+        } > ubootefi.var
     build:
       # Two variants are built from the same source:
       #   rockpi4c      -- default: SPI-NOR flash boot, no TPM (flash preserved);

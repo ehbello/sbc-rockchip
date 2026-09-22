@@ -135,6 +135,7 @@ steps:
           /pkg/configs/efi.cfg \
           /pkg/configs/measured-boot.cfg \
           /pkg/configs/optee.cfg \
+          /pkg/configs/rpmb.cfg \
           /pkg/configs/ftpm.cfg
 
         # TEE= is what makes the SPL pack OP-TEE into the FIT as BL32, so BL31

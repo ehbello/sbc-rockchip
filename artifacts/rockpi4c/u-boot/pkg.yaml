@@ -18,6 +18,16 @@ steps:
     prepare:
       - |
         tar xf u-boot.tar.bz2 --strip-components=1
+      - |
+        # mkimage has to run where the installer runs, and the imager that runs
+        # it ships no shell -- mkimage asks one to copy the FIT before rebuilding
+        # it, which fails there with a message naming cp. The patch replaces that
+        # with copyfile(), which the same directory already provides. Sent
+        # upstream; drop this once it lands.
+        #
+        # It goes in prepare rather than per variant because `make mrproper` does
+        # not revert patches, so applying it once covers every variant.
+        patch -p1 --fuzz=0 < /pkg/patches/uboot-mkimage-copy-in-process.patch
     build:
       # Two variants are built from the same source:
       #   rockpi4c      -- default: SPI-NOR flash boot, no TPM (flash preserved);

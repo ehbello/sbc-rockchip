@@ -1,0 +1,43 @@
+tools: mkimage: copy the FIT in process instead of shelling out to cp
+
+Rebuilding an existing FIT (-F) starts by making a working copy of it, and
+mkimage asks a shell to do that:
+
+	snprintf(cmd, sizeof(cmd), "cp \"%s\" \"%s\"",
+		 params->imagefile, tmpfile);
+
+so signing a FIT needs /bin/sh and cp on top of mkimage itself. That rules the
+tool out of the minimal images which are exactly where firmware tends to be
+assembled; in one of them the failure is
+
+    mkimage: system(cp "u-boot.itb" "u-boot.itb.tmp") failed:
+    No such file or directory
+
+which names cp but means there is no shell to run it with: glibc's system()
+uses posix_spawn and returns -1 with ENOENT when /bin/sh is missing.
+
+copyfile() already does this in process, lives in tools/fit_common.c and is
+already called a few lines further down in this same function to restore the
+backup, so use it. Leaving cmd empty makes the existing `if (*cmd && ...)`
+guard skip system() altogether, the same way the auto-FIT path above already
+does.
+
+No functional change: the temporary file ends up with the same contents.
+
+Signed-off-by: Enrique Hernández Bello <ehbello@gmail.com>
+---
+--- a/tools/fit_image.c
++++ b/tools/fit_image.c
+@@ -960,8 +960,10 @@
+ 			 MKIMAGE_DTC, params->dtc, tmpfile, params->datafile);
+ 		debug("Trying to execute \"%s\"\n", cmd);
+ 	} else {
+-		snprintf(cmd, sizeof(cmd), "cp \"%s\" \"%s\"",
+-			 params->imagefile, tmpfile);
++		/* Copy the image in process: mkimage must not need a shell. */
++		if (copyfile(params->imagefile, tmpfile) < 0)
++			goto err_system;
++		*cmd = '\0';
+ 	}
+ 	if (strlen(cmd) >= MKIMAGE_MAX_DTC_CMDLINE_LEN - 1) {
+ 		fprintf(stderr, "WARNING: command-line for FIT creation might be truncated and will probably fail.\n");

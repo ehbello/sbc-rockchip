@@ -169,7 +169,7 @@ func writePEM(path, blockType string, der []byte) error {
 // devicetree is packed inside the Rockchip ID block, so the public key has to be
 // in it before that block is rebuilt; the FIT is signed separately and sits
 // after it in the blob.
-func signedUBoot(ctx context.Context, tools, uBoot string, key fitSigningKey) ([]byte, error) {
+func signedUBoot(ctx context.Context, tools, uBoot string, key fitSigningKey, variables []efiVariable) ([]byte, error) {
 	// Everything else this runs is resolved under the artifacts path, where the
 	// u-boot package puts it. These two come from the imager instead; look them
 	// up now so a missing one is reported as itself rather than as whatever step
@@ -206,7 +206,7 @@ func signedUBoot(ctx context.Context, tools, uBoot string, key fitSigningKey) ([
 		return nil, err
 	}
 
-	fit, offset, err := signFIT(ctx, tools, uBoot, work, keyDir, splDTB)
+	fit, offset, err := signFIT(ctx, tools, uBoot, work, keyDir, splDTB, variables)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func mkIDBlock(ctx context.Context, tools, idbloader, tpl, spl string) ([]byte, 
 
 // signFIT signs the published FIT and returns it along with the offset it is
 // packed at.
-func signFIT(ctx context.Context, tools, uBoot, work, keyDir, splDTB string) ([]byte, int, error) {
+func signFIT(ctx context.Context, tools, uBoot, work, keyDir, splDTB string, variables []efiVariable) ([]byte, int, error) {
 	fit, err := os.ReadFile(filepath.Join(uBoot, "u-boot.itb"))
 	if err != nil {
 		return nil, 0, err
@@ -298,6 +298,14 @@ func signFIT(ctx context.Context, tools, uBoot, work, keyDir, splDTB string) ([]
 	offset, err := packedFITOffset(ctx, tools, uBoot, work, packed, fit)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// After the offset is derived, because that checks the published image can be
+	// rebuilt from the published pieces byte for byte, and this changes them.
+	if len(variables) > 0 {
+		if err = enrolSecureBootKeys(fit, variables); err != nil {
+			return nil, 0, err
+		}
 	}
 
 	path := filepath.Join(work, "u-boot.itb")

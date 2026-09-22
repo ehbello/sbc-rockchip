@@ -184,19 +184,31 @@ func (i *rockPi4c) Install(ctx context.Context, options overlay.InstallOptions[r
 
 	uBoot := filepath.Join(options.ArtifactsPath, uBootDir, uBootBoard)
 
+	// Secure Boot keys, if this image build was given any. They are enrolled by
+	// rewriting u-boot, which is a payload of the FIT the SPL verifies, so doing
+	// it means signing the FIT afterwards whether that was asked for or not.
+	variables, err := secureBootVariables(secureBootDir)
+	if err != nil {
+		return err
+	}
+
 	key, err := newFITSigningKey(options.ExtraOptions.FITSigningKey)
 	if err != nil {
 		return err
 	}
 
+	if key == nil && len(variables) > 0 {
+		key = ephemeralKey{}
+	}
+
 	var image []byte
 
 	if key == nil {
-		// No signing asked for: write the image the u-boot package packed, as it
-		// packed it.
+		// Nothing to sign and nothing to enrol: write the image the u-boot package
+		// packed, as it packed it.
 		image, err = os.ReadFile(filepath.Join(uBoot, "u-boot-rockchip.bin"))
 	} else {
-		image, err = signedUBoot(ctx, filepath.Join(options.ArtifactsPath, uBootToolsDir), uBoot, key)
+		image, err = signedUBoot(ctx, filepath.Join(options.ArtifactsPath, uBootToolsDir), uBoot, key, variables)
 	}
 
 	if err != nil {

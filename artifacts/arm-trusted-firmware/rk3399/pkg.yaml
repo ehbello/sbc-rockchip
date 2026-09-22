@@ -31,11 +31,29 @@ steps:
         mkdir -p $(pwd)/build/rk3399/release/
         cp -r /pkg/m0 $(pwd)/build/rk3399/release/
 
+        # SPD=opteed links the OP-TEE Secure Payload Dispatcher into BL31: it
+        # initializes the secure payload at boot and routes every normal-world
+        # OP-TEE SMC into it, saving and restoring the two worlds' contexts
+        # around the switch. Without it the OP-TEE SMC function IDs return
+        # "unknown SMC" and u-boot's OP-TEE driver never probes.
+        #
+        # This BL31 is shared by every rockpi4c u-boot variant, but only the
+        # opt-in rockpi4c-ftpm one packs OP-TEE as BL32 (see
+        # artifacts/rockpi4c/u-boot/pkg.yaml). On the variants that do not, the
+        # dispatcher finds no secure payload, says so and the board boots
+        # normally:
+        #   WARNING: No OPTEE provided by BL2 boot loader, Booting device
+        #     without OPTEE initialization. SMC`s destined for OPTEE will
+        #     return SMC_UNK
+        #   ERROR:   Error initializing runtime service opteed_fast
+        # That is the whole visible effect on them, and it is expected output
+        # rather than a fault to chase.
         make -j $(nproc) PLAT=rk3399 DEBUG=0 bl31 \
           LOG_LEVEL=30 \
           EVENT_LOG_LEVEL=10 \
           MEASURED_BOOT=1 \
-          TRUSTED_BOARD_BOOT=1
+          TRUSTED_BOARD_BOOT=1 \
+          SPD=opteed
     install:
       - |
         mkdir -p /rootfs/arm-trusted-firmware/rk3399
